@@ -1,4 +1,4 @@
-const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) ? import.meta.env.VITE_API_BASE : 'http://192.168.137.1:5000';
+const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) ? import.meta.env.VITE_API_BASE : 'https://do-sensor-backend.onrender.com/api';
 
 let accessToken: string | null = localStorage.getItem('do_sensor_token');
 

@@ -5,11 +5,11 @@
   "installCommand": "npm install",
   "framework": "vite",
   "env": {
-    "VITE_API_BASE": "https://do-sensor-backend.onrender.com"
+    "VITE_API_BASE": "https://do-sensor-backend.onrender.com/api"
   },
   "build": {
     "env": {
-      "VITE_API_BASE": "https://do-sensor-backend.onrender.com"
+      "VITE_API_BASE": "https://do-sensor-backend.onrender.com/api"
     }
   },
   "rewrites": [

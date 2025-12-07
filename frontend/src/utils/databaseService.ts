@@ -1,6 +1,6 @@
 import backend from '../components/utils/backend';
 
-const API_BASE = (import.meta as any)?.env?.VITE_API_BASE ?? 'http://127.0.0.1:5000';
+const API_BASE = (import.meta as any)?.env?.VITE_API_BASE ?? 'https://do-sensor-backend.onrender.com/api';
 
 // Database monitoring service for data download page
 // Based on Smart Meter architecture

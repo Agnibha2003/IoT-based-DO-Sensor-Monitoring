@@ -5,6 +5,7 @@ services:
     region: oregon
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
@@ -14,8 +15,16 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      - key: JWT_EXPIRY
+        value: 24h
       - key: CORS_ORIGIN
         value: https://do-sensor-dashboard.vercel.app
+      - key: BACKEND_PORT
+        value: "5000"
+      - key: DEVICE_ID
+        value: sensor-001
+      - key: DEVICE_API_KEY
+        value: change-me-in-production
 
   - type: postgres
     name: do-sensor-db

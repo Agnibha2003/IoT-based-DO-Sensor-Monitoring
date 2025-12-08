@@ -43,12 +43,27 @@ const parseDateToEpoch = (value, fallbackSeconds) => {
 const buildDataset = (rows, metrics) =>
   rows.map((row) => {
     const record = {
-      timestamp: row.captured_at,
-      iso8601: new Date(row.captured_at * 1000).toISOString(),
+      'Timestamp (epoch)': row.captured_at,
+      'Timestamp (ISO)': new Date(row.captured_at * 1000).toISOString(),
     };
+    
+    // Map metrics to user-friendly column names
     metrics.forEach((metric) => {
       const metricInfo = metricCatalog[metric];
-      record[metric] = row[metricInfo.field];
+      const value = row[metricInfo.field];
+      
+      // Use clean labels as column headers
+      if (metric === 'do_concentration') {
+        record['DO Concentration (mg/L)'] = value != null ? Number(value).toFixed(3) : '';
+      } else if (metric === 'corrected_do') {
+        record['Corrected DO (mg/L)'] = value != null ? Number(value).toFixed(3) : '';
+      } else if (metric === 'temperature') {
+        record['Temperature (°C)'] = value != null ? Number(value).toFixed(2) : '';
+      } else if (metric === 'pressure') {
+        record['Pressure (kPa)'] = value != null ? Number(value).toFixed(2) : '';
+      } else if (metric === 'do_saturation') {
+        record['DO Saturation (%)'] = value != null ? Number(value).toFixed(2) : '';
+      }
     });
     return record;
   });
@@ -86,21 +101,34 @@ const buildXlsxBuffer = async ({ dataset, analytics, metrics, includeRaw }) => {
   workbook.created = new Date();
 
   const dataSheet = workbook.addWorksheet('Data');
+  
+  // Build columns with clean headers matching the dataset keys
   const dataColumns = [
-    { header: 'Timestamp (epoch)', key: 'timestamp', width: 18 },
-    { header: 'Timestamp (ISO)', key: 'iso8601', width: 26 },
-    ...metrics.map((metric) => ({
-      header: metricCatalog[metric]?.label || metric,
-      key: metric,
-      width: 16,
-    })),
+    { header: 'Timestamp (epoch)', key: 'Timestamp (epoch)', width: 18 },
+    { header: 'Timestamp (ISO)', key: 'Timestamp (ISO)', width: 28 },
   ];
+  
+  // Add metric columns with proper labels
+  metrics.forEach((metric) => {
+    if (metric === 'do_concentration') {
+      dataColumns.push({ header: 'DO Concentration (mg/L)', key: 'DO Concentration (mg/L)', width: 22 });
+    } else if (metric === 'corrected_do') {
+      dataColumns.push({ header: 'Corrected DO (mg/L)', key: 'Corrected DO (mg/L)', width: 22 });
+    } else if (metric === 'temperature') {
+      dataColumns.push({ header: 'Temperature (°C)', key: 'Temperature (°C)', width: 18 });
+    } else if (metric === 'pressure') {
+      dataColumns.push({ header: 'Pressure (kPa)', key: 'Pressure (kPa)', width: 18 });
+    } else if (metric === 'do_saturation') {
+      dataColumns.push({ header: 'DO Saturation (%)', key: 'DO Saturation (%)', width: 18 });
+    }
+  });
+  
   dataSheet.columns = dataColumns;
 
   if (includeRaw && dataset.length) {
     dataSheet.addRows(dataset);
   } else {
-    dataSheet.addRow({ iso8601: 'Raw data excluded from export' });
+    dataSheet.addRow({ 'Timestamp (ISO)': 'Raw data excluded from export' });
   }
 
   if (analytics?.metrics?.length) {
@@ -147,14 +175,18 @@ const buildPdfBuffer = async ({ dataset, analytics, metrics, includeRaw, meta })
     doc.fontSize(12).text('Data (first 200 rows)', { underline: true });
     doc.moveDown(0.5);
     const preview = dataset.slice(0, 200);
-    doc.fontSize(8);
-    const headers = ['timestamp', 'iso8601', ...metrics];
+    doc.fontSize(7);
+    
+    // Use clean headers from dataset keys
+    const headers = Object.keys(preview[0]);
     doc.text(headers.join(' | '));
     doc.moveDown(0.2);
+    
     preview.forEach((row) => {
       const line = headers.map((key) => row[key] ?? '').join(' | ');
       doc.text(line);
     });
+    
     if (dataset.length > 200) {
       doc.moveDown(0.5);
       doc.text(`(+${dataset.length - 200} more rows)`);

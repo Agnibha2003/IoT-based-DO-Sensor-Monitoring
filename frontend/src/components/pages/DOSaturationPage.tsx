@@ -29,10 +29,10 @@ export default function DOSaturationPage() {
         const hist = await backend.getHistory(168);
         if (!mounted) return;
         const chartData = hist.map((r: any) => ({
-          time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          date: new Date(r.timestamp).toLocaleDateString(),
+          time: new Date(r.captured_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date(r.captured_at * 1000).toLocaleDateString(),
           value: r.do_saturation != null ? Number(r.do_saturation).toFixed(1) : '0.0',
-          timestamp: r.timestamp
+          timestamp: r.captured_at
         }));
         setData(chartData);
         
@@ -63,13 +63,16 @@ export default function DOSaturationPage() {
         const latest = await backend.getLatestReading();
         if (!mounted || !latest) return;
         
+        const reading = latest.reading || latest;
+        const readingTimestamp = reading.captured_at;
+        
         // Only add if this is a new data point
-        if (!lastTimestamp || latest.timestamp !== lastTimestamp) {
+        if (!lastTimestamp || readingTimestamp !== lastTimestamp) {
           const newDataPoint = {
-            time: new Date(latest.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            date: new Date(latest.timestamp).toLocaleDateString(),
-            value: latest.do_saturation != null ? Number(latest.do_saturation).toFixed(1) : '0.0',
-            timestamp: latest.timestamp
+            time: new Date(readingTimestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            date: new Date(readingTimestamp * 1000).toLocaleDateString(),
+            value: reading.do_saturation != null ? Number(reading.do_saturation).toFixed(1) : '0.0',
+            timestamp: readingTimestamp
           };
           
           setData(prevData => {
@@ -82,8 +85,8 @@ export default function DOSaturationPage() {
             return updated;
           });
           
-          setLastTimestamp(latest.timestamp);
-          const latestVal = latest.do_saturation != null ? Number(latest.do_saturation).toFixed(1) : '0.0';
+          setLastTimestamp(readingTimestamp);
+          const latestVal = reading.do_saturation != null ? Number(reading.do_saturation).toFixed(1) : '0.0';
           setCurrentValue(latestVal);
           
           setData(currentData => {
@@ -288,9 +291,9 @@ export default function DOSaturationPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-96 relative">
-              <div className="absolute inset-0 bg-linear-to-br from-amber-500/5 via-transparent to-yellow-500/5 rounded-lg"></div>
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-96 relative overflow-hidden">
+              <div className="absolute inset-0 bg-linear-to-tr from-amber-500/5 via-transparent to-orange-500/5 rounded-lg"></div>
+              <ResponsiveContainer width="99%" height="100%">
                 <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                   <defs>
                     <linearGradient id="colorSaturation" x1="0" y1="0" x2="0" y2="1">

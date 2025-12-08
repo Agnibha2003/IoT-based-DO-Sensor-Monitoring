@@ -339,7 +339,7 @@ export default function NewDOPage() {
                     tick={{ fontSize: 11, fill: '#a1b5a1', fontWeight: 500 }}
                     stroke="url(#strokeGradientNew)"
                     strokeWidth={2}
-                    domain={['dataMin - 0.5', 'dataMax + 0.5']}
+                    domain={[0, 'auto']}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -364,7 +364,9 @@ export default function NewDOPage() {
                     strokeWidth={4}
                     fillOpacity={1}
                     fill="url(#colorNewDO)"
-                    filter="url(#shadowNew)"
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    baseValue={0}
                     dot={{ 
                       fill: '#4ade80', 
                       strokeWidth: 3, 

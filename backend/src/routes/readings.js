@@ -25,8 +25,15 @@ router.post('/', requireDeviceKey, asyncHandler(async (req, res) => {
   res.status(201).json({ reading });
 }));
 
+// Helper: pick the user's sensor if sensor_id not provided
+const resolveUserSensorId = async (req) => {
+  if (req.query.sensor_id) return req.query.sensor_id;
+  const row = await db.get('SELECT id FROM sensors WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1', [req.user.id]);
+  return row?.id || config.deviceDefaultId;
+};
+
 router.get('/latest', requireAuth, asyncHandler(async (req, res) => {
-  const sensorId = req.query.sensor_id || config.deviceDefaultId;
+  const sensorId = await resolveUserSensorId(req);
   const sensor = await getSensorByIdAndUser(sensorId, req.user.id);
   if (!sensor) {
     return res.status(403).json({ error: 'Access denied' });
@@ -36,7 +43,7 @@ router.get('/latest', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 router.get('/history', requireAuth, asyncHandler(async (req, res) => {
-  const sensorId = req.query.sensor_id || config.deviceDefaultId;
+  const sensorId = await resolveUserSensorId(req);
   const sensor = await getSensorByIdAndUser(sensorId, req.user.id);
   if (!sensor) {
     return res.status(403).json({ error: 'Access denied' });
@@ -54,7 +61,7 @@ router.get('/history', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 router.get('/stats', requireAuth, asyncHandler(async (req, res) => {
-  const sensorId = req.query.sensor_id || config.deviceDefaultId;
+  const sensorId = await resolveUserSensorId(req);
   const sensor = await getSensorByIdAndUser(sensorId, req.user.id);
   if (!sensor) {
     return res.json({

@@ -61,23 +61,34 @@ export default function HomePage() {
   }, [getRefreshInterval]);
 
   // Auto-detect user's location and timezone on component mount
+  // BUT do not overwrite a user-confirmed location saved in localStorage
   useEffect(() => {
     let isMounted = true;
+
+    // Respect existing persisted location (set from Settings page)
+    const savedLocation = localStorage.getItem('do_sensor_location');
+    if (savedLocation) {
+      try {
+        const parsed = JSON.parse(savedLocation);
+        if (parsed?.city && parsed?.city !== 'Unknown') {
+          return () => { isMounted = false; };
+        }
+      } catch (err) {
+        // fallthrough to detection
+      }
+    }
     
     const detectLocation = async () => {
       try {
         const result = await detectLocationAndTimezone((location) => {
           if (isMounted) {
-            // Update timezone in theme context
             setTimezone(location.timezone);
-            
-            // Update location info in theme context
-            setLocationInfo({
+            setLocationInfo((prev: any) => ({
+              ...prev,
               latitude: location.latitude,
               longitude: location.longitude,
               timezone: location.timezone
-            });
-            
+            }));
             console.log(`Timezone auto-detected: ${location.timezone} (${location.latitude}, ${location.longitude})`);
           }
         });

@@ -165,7 +165,13 @@ const buildPdfBuffer = async ({ dataset, analytics, metrics, includeRaw, meta })
 });
 
 router.get('/readings', requireAuth, asyncHandler(async (req, res) => {
-  const sensorId = req.query.sensor_id || config.deviceDefaultId;
+  // Resolve user's sensor if sensor_id not provided
+  let sensorId = req.query.sensor_id;
+  if (!sensorId) {
+    const userSensor = await db.get('SELECT id FROM sensors WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1', [req.user.id]);
+    sensorId = userSensor?.id || config.deviceDefaultId;
+  }
+  
   const sensor = await getSensorByIdAndUser(sensorId, req.user.id);
   if (!sensor) {
     return res.status(403).json({ error: 'Access denied' });

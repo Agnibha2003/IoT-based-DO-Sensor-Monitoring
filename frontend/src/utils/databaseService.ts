@@ -23,7 +23,7 @@ export interface DatabaseStats {
 export const fetchDatabaseStats = async (): Promise<DatabaseStats> => {
   try {
     const token = backend.getAccessToken();
-    const url = `${API_BASE}/api/export/stats`;
+    const url = `${API_BASE}/export/stats`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {

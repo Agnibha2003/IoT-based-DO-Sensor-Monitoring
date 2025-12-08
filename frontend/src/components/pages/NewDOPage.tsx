@@ -280,7 +280,7 @@ export default function NewDOPage() {
         transition={{ delay: 0.6, duration: 0.7, ease: "easeOut" }}
         whileHover={{ scale: 1.02 }}
       >
-        <Card className="hover:shadow-xl transition-all duration-500 border-border/50 hover:border-primary/30 bg-card/50 backdrop-blur-sm">
+        <Card className="hover:shadow-xl transition-all duration-500 border-border/50 hover:border-primary/30 bg-card/50 backdrop-blur-sm overflow-hidden">
           <CardHeader>
             <CardTitle className="text-lg text-foreground flex items-center space-x-2">
               <span>{t.trendAnalysis} - {t.last7Days}</span>
@@ -290,11 +290,10 @@ export default function NewDOPage() {
               {t.hourTrendAnalysis} - {t.newDOConcentration}
             </CardDescription>
           </CardHeader>
-          <CardContent className="overflow-hidden">
-            <div className="h-96 relative overflow-hidden">
-              <div className="absolute inset-0 bg-linear-to-tr from-emerald-500/5 via-transparent to-green-500/5 rounded-lg"></div>
-              <ResponsiveContainer width="95%" height="100%">
-                <AreaChart data={data} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
+          <CardContent className="overflow-hidden px-6">
+            <div className="h-96 w-full max-w-full overflow-hidden">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data} margin={{ top: 10, right: 5, left: 0, bottom: 5 }}>
                   <defs>
                     <linearGradient id="colorNewDO" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#4ade80" stopOpacity={0.95}/>

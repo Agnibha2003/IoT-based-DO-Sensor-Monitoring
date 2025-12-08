@@ -49,12 +49,23 @@ const TrendAnalysisChart: React.FC<TrendAnalysisChartProps> = ({
   const processedData = useMemo(() => {
     if (!data || data.length === 0) return null;
     
-    const values = data.map(d => parseFloat(d.value) || 0);
+    const values = data.map(d => {
+      const val = parseFloat(d.value);
+      return isNaN(val) ? 0 : val;
+    });
+    
+    if (values.length === 0) return null;
+    
     const max = Math.max(...values);
     const min = Math.min(...values);
-    const range = max - min || 1;
+    let range = max - min;
     
-    // Calculate moving average
+    // Handle case where all values are the same
+    if (range === 0) {
+      range = 1;
+    }
+    
+    // Calculate moving average with proper handling
     const movingAverage = values.map((_, index) => {
       const start = Math.max(0, index - 2);
       const end = Math.min(values.length, index + 3);
@@ -111,16 +122,22 @@ const TrendAnalysisChart: React.FC<TrendAnalysisChartProps> = ({
   }
   
   const xGridLines = [];
-  const xGridCount = Math.min(10, data.length - 1);
+  const xGridCount = Math.min(10, Math.max(1, data.length - 1));
   for (let i = 0; i <= xGridCount; i++) {
     const index = Math.floor((i / xGridCount) * (data.length - 1));
     const x = xScale(index);
-    xGridLines.push({ x, time: data[index]?.time || '' });
+    const timeDisplay = data[index]?.time || data[Math.min(index, data.length - 1)]?.time || '';
+    xGridLines.push({ x, time: timeDisplay });
   }
   
   // Generate smooth curve paths using cubic bezier curves
   const generateSmoothPath = (points: number[]) => {
-    if (points.length < 2) return '';
+    if (points.length < 1) return '';
+    if (points.length === 1) {
+      const x = xScale(0);
+      const y = yScale(points[0]);
+      return `M ${x} ${y}`;
+    }
     
     const coords = points.map((value, index) => ({
       x: xScale(index),
@@ -137,7 +154,7 @@ const TrendAnalysisChart: React.FC<TrendAnalysisChartProps> = ({
       // Calculate control points for smooth curves
       const cp1x = prev.x + (curr.x - prev.x) / 3;
       const cp1y = prev.y;
-      const cp2x = curr.x - (next ? (next.x - prev.x) / 6 : (curr.x - prev.x) / 3);
+      const cp2x = curr.x - ((next ? next.x : curr.x) - prev.x) / 6;
       const cp2y = curr.y;
       
       path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`;

@@ -64,42 +64,121 @@ function generateSafeData(
 export default function AnalyticsPage() {
   const [timeframe, setTimeframe] = useState('last24Hours');
   const [selectedParameter, setSelectedParameter] = useState('oldDO');
-  const [data, setData] = useState(() => generateSafeData('last24Hours'));
+  const [data, setData] = useState<any[]>([]);
   const [customDateRange, setCustomDateRange] = useState<{from?: Date, to?: Date}>({});
   const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   const { language, isDark } = useTheme();
   const t = useTranslation(language);
 
-  useEffect(() => {
-    // Pull stats/history from backend when available; otherwise empty
+  // Function to get time range in seconds based on timeframe
+  const getTimeRangeInSeconds = (tf: string, from?: Date, to?: Date): { from: number; to: number } => {
+    const now = Math.floor(Date.now() / 1000);
+    
+    if (tf === 'custom' && from && to) {
+      return {
+        from: Math.floor(from.getTime() / 1000),
+        to: Math.floor(to.getTime() / 1000)
+      };
+    }
+    
+    const hours: { [key: string]: number } = {
+      lastHour: 1,
+      last6Hours: 6,
+      last12Hours: 12,
+      last24Hours: 24,
+      last7Days: 7 * 24
+    };
+    
+    const hoursBack = hours[tf] || 24;
+    return {
+      from: now - (hoursBack * 3600),
+      to: now
+    };
+  };
+
+  // Fetch and process data from backend
+  const fetchAnalyticsData = async () => {
     let mounted = true;
-    const refresh = async () => {
-      try {
-        // request a reasonable number of points depending on timeframe
-        const hist = await backend.getHistory(500);
-        if (!mounted) return;
-        // map to chart-friendly format
-        const mapped = hist.map((r:any) => ({ time: new Date(r.timestamp).toLocaleString(), oldDO: r.do_concentration != null ? Number(r.do_concentration).toFixed(2) : '0', newDO: r.corrected_do != null ? Number(r.corrected_do).toFixed(2) : '0', temperature: r.temperature != null ? Number(r.temperature).toFixed(1) : '0', pressure: r.pressure != null ? Number(r.pressure).toFixed(1) : '0', doSaturation: r.do_saturation != null ? Number(r.do_saturation).toFixed(1) : '0' }));
-        setData(mapped);
-      } catch (e) {
+    setLoading(true);
+    try {
+      // Get backend history
+      const hist = await backend.getHistory(500);
+      if (!mounted) return;
+      
+      if (!hist || hist.length === 0) {
+        setData([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Get time range for current timeframe
+      const timeRange = getTimeRangeInSeconds(
+        timeframe,
+        customDateRange.from,
+        customDateRange.to
+      );
+      
+      // Filter data by time range
+      const filtered = hist.filter((r: any) => {
+        // Use captured_at (Unix seconds) from backend
+        const readingTime = r.captured_at || Math.floor(r.timestamp / 1000);
+        return readingTime >= timeRange.from && readingTime <= timeRange.to;
+      });
+      
+      // Map to chart-friendly format with proper timestamp conversion
+      const mapped = filtered.map((r: any) => {
+        // Convert captured_at (Unix seconds) to readable time
+        const timestamp = r.captured_at ? r.captured_at * 1000 : r.timestamp;
+        const dateObj = new Date(timestamp);
+        
+        // Format time as HH:MM:SS
+        const timeStr = dateObj.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+        
+        return {
+          time: timeStr,
+          timestamp: r.captured_at || Math.floor(r.timestamp / 1000),
+          oldDO: r.do_concentration != null ? Number(r.do_concentration).toFixed(2) : '0',
+          newDO: r.corrected_do != null ? Number(r.corrected_do).toFixed(2) : '0',
+          temperature: r.temperature != null ? Number(r.temperature).toFixed(1) : '0',
+          pressure: r.pressure != null ? Number(r.pressure).toFixed(1) : '0',
+          doSaturation: r.do_saturation != null ? Number(r.do_saturation).toFixed(1) : '0'
+        };
+      });
+      
+      // Sort by timestamp ascending
+      mapped.sort((a, b) => a.timestamp - b.timestamp);
+      
+      if (mounted) {
+        setData(mapped.length > 0 ? mapped : []);
+      }
+    } catch (e) {
+      console.error('Error fetching analytics data:', e);
+      if (mounted) {
         setData([]);
       }
-    };
-    refresh();
-    const interval = setInterval(refresh, 10000);
-    return () => { mounted = false; clearInterval(interval); };
-  }, [timeframe, customDateRange]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (timeframe === 'custom' && customDateRange.from && customDateRange.to) {
-        setData(generateSafeData(timeframe, customDateRange.from, customDateRange.to));
-      } else if (timeframe !== 'custom') {
-        setData(generateSafeData(timeframe));
+    } finally {
+      if (mounted) {
+        setLoading(false);
       }
-    }, 10000);
+    }
+  };
 
+  // Fetch data when timeframe or custom date range changes
+  useEffect(() => {
+    fetchAnalyticsData();
+    
+    // Auto-refresh every 10 seconds
+    const interval = setInterval(() => {
+      fetchAnalyticsData();
+    }, 10000);
+    
     return () => clearInterval(interval);
   }, [timeframe, customDateRange]);
 
@@ -136,7 +215,9 @@ export default function AnalyticsPage() {
       };
     }
     
-    const values = data.map(d => parseFloat(d[selectedParameter as keyof typeof d] || '0')).filter(v => !isNaN(v));
+    const values = data
+      .map(d => parseFloat(d[selectedParameter as keyof typeof d] || '0'))
+      .filter(v => !isNaN(v) && v !== null);
     
     if (values.length === 0) {
       return {
@@ -155,13 +236,18 @@ export default function AnalyticsPage() {
     const variance = values.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / values.length;
     const stdDev = Math.sqrt(variance);
     
+    // Calculate trend based on first and last values
+    const firstVal = values[0];
+    const lastVal = values[values.length - 1];
+    const trend = lastVal > firstVal ? 'increasing' : lastVal < firstVal ? 'decreasing' : 'stable';
+    
     return {
       average: avg.toFixed(2),
       minimum: min.toFixed(2),
       maximum: max.toFixed(2),
       stdDev: stdDev.toFixed(2),
       range: (max - min).toFixed(2),
-      trend: values[values.length - 1] > avg ? 'increasing' : 'decreasing'
+      trend
     };
   };
 
@@ -169,19 +255,29 @@ export default function AnalyticsPage() {
   const currentParam = getCurrentParameter();
 
   const getChartData = () => {
-    return data.map(d => ({
+    // Ensure data is sorted by timestamp and return properly formatted
+    const sorted = [...data].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    return sorted.map(d => ({
       time: d.time,
-      value: d[selectedParameter as keyof typeof d] || '0'
+      value: d[selectedParameter as keyof typeof d] || '0',
+      timestamp: d.timestamp
     }));
   };
 
   const handleCustomDateSelect = (range: {from?: Date, to?: Date} | undefined) => {
     if (range?.from && range?.to) {
-      setCustomDateRange(range);
+      // Ensure to date is end of day
+      const toDate = new Date(range.to);
+      toDate.setHours(23, 59, 59, 999);
+      
+      setCustomDateRange({
+        from: range.from,
+        to: toDate
+      });
       setTimeframe('custom');
       setIsCustomRangeOpen(false);
     } else if (range?.from && !range?.to) {
-      setCustomDateRange(range);
+      setCustomDateRange({ from: range.from });
     }
   };
 
@@ -409,7 +505,14 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="w-full">
-              {data && data.length > 0 ? (
+              {loading ? (
+                <div className="h-96 flex items-center justify-center text-muted-foreground">
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+                    <span>Fetching analytics data...</span>
+                  </div>
+                </div>
+              ) : data && data.length > 0 ? (
                 <TrendAnalysisChart 
                   data={getChartData()} 
                   color={currentParam.color} 
@@ -420,7 +523,10 @@ export default function AnalyticsPage() {
                 />
               ) : (
                 <div className="h-96 flex items-center justify-center text-muted-foreground">
-                  Loading chart data...
+                  <div className="flex flex-col items-center space-y-2">
+                    <span>No data available for selected time range</span>
+                    <span className="text-xs">Try adjusting the timeframe or date range</span>
+                  </div>
                 </div>
               )}
             </div>

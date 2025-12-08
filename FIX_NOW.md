@@ -67,7 +67,7 @@ Region:              Oregon
 
 ---
 
-## AFTER CLICKING "CREATE WEB SERVICE"
+## AFTER CLICKING "DEPLOY WEB SERVICE"
 
 Wait for build. You'll see logs like:
 ```

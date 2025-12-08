@@ -115,15 +115,17 @@ Select: Oregon (or closest to your location)
 
 ---
 
-## STEP 6️⃣: Click "Create Web Service"
+## STEP 6️⃣: Click "Deploy Web Service"
 
 ```
 At the bottom of the page, look for a button:
-"Create Web Service"
+"Deploy Web Service"
 (it should be purple/blue)
 
 CLICK IT.
 ```
+
+**YES, this is the button you need to click.** It will create AND deploy the service in one step.
 
 **The build will START.** You'll see:
 ```

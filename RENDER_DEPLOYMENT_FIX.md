@@ -45,7 +45,7 @@ If the "Create Web Service" button isn't working, follow this step-by-step manua
 6. Select: `IoT-based-DO-Sensor-Monitoring` repository
 7. Click **Connect**
 
-### Step 2: Configure Service Settings
+### Step 3: Configure Service Settings
 
 **These are the EXACT settings that work:**
 
@@ -61,8 +61,9 @@ Instance Type:           Free
 Region:                  Oregon
 ```
 
-### Step 3: Create the Service
-- Click **Create Web Service** button
+### Step 4: Deploy the Service
+- Click **"Deploy Web Service"** button (at the bottom)
+- YES, this button creates AND deploys your service
 - Wait for deployment to start (you'll see logs)
 
 ### Step 4: Add Environment Variables

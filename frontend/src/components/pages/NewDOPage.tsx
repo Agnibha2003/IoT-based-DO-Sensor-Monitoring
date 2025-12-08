@@ -290,11 +290,11 @@ export default function NewDOPage() {
               {t.hourTrendAnalysis} - {t.newDOConcentration}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-hidden">
             <div className="h-96 relative overflow-hidden">
               <div className="absolute inset-0 bg-linear-to-tr from-emerald-500/5 via-transparent to-green-500/5 rounded-lg"></div>
-              <ResponsiveContainer width="99%" height="100%">
-                <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <ResponsiveContainer width="95%" height="100%">
+                <AreaChart data={data} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
                   <defs>
                     <linearGradient id="colorNewDO" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#4ade80" stopOpacity={0.95}/>

@@ -372,7 +372,7 @@ export default function NewDOPage() {
                     fill="url(#colorNewDO)"
                     isAnimationActive={true}
                     animationDuration={1500}
-                    baseValue={0}
+                    baseValue="dataMin"
                     dot={{ 
                       fill: '#4ade80', 
                       strokeWidth: 3, 

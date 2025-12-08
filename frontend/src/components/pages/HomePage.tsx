@@ -29,9 +29,9 @@ export default function HomePage() {
     let isMounted = true;
     const fetchAndUpdate = async () => {
       try {
-        const latest = await backend.getLatestReading();
+        const latestResp = await backend.getLatestReading();
         if (!isMounted) return;
-        // Map backend fields to UI fields
+        const latest = latestResp?.reading || latestResp || null;
         setCurrentReadings({
           oldDO: latest && latest.do_concentration != null ? Number(latest.do_concentration).toFixed(2) : '0.00',
           newDO: latest && latest.corrected_do != null ? Number(latest.corrected_do).toFixed(2) : '0.00',

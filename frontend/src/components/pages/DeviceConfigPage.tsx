@@ -9,8 +9,17 @@ import { Key, Hash, Code, Trash2, Copy, Check, AlertTriangle, Shield, Eye, EyeOf
 import { toast } from 'sonner';
 import backend from '../utils/backend';
 
-// Custom API calls
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+// Get base API URL (without /api suffix for constructing full URLs)
+const getApiBase = () => {
+  const viteBase = (import.meta as any)?.env?.VITE_API_BASE;
+  if (viteBase) {
+    // VITE_API_BASE already includes /api, so strip it for base URL
+    return viteBase.replace(/\/api\/?$/, '');
+  }
+  return 'https://do-sensor-backend.onrender.com';
+};
+
+const API_BASE_URL = getApiBase();
 
 const fetchDeviceConfig = async () => {
   const token = backend.getAccessToken();
@@ -162,7 +171,7 @@ export default function DeviceConfigPage({ onSignOut }: { onSignOut: () => void 
   const getSampleCode = () => {
     if (!deviceConfig) return '';
     
-    const baseUrl = API_BASE_URL || 'http://localhost:5001';
+    const baseUrl = API_BASE_URL || 'https://do-sensor-backend.onrender.com';
     
     return `# DO Sensor Sample Code
 # Replace the values below with your credentials

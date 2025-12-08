@@ -13,21 +13,24 @@ export default function Header({ startTime }: HeaderProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [displayTime, setDisplayTime] = useState('');
   const [uptime, setUptime] = useState('00:00:00');
+    const [currentLocation, setCurrentLocation] = useState({ city: 'Loading...', temp: 0, condition: 'Unknown' });
   const { language, timezone, country, locationInfo, weatherInfo } = useTheme();
   const t = useTranslation(language);
   
-  // Dynamic location and weather based on selected country or detected location
+  // Dynamic location and weather - prioritize persisted location data
   const getLocationAndWeather = () => {
-    // If we have detected location and weather info, use that
-    if (locationInfo?.city && weatherInfo?.temperature) {
+    // Priority 1: Use persisted/detected location and weather info
+    if (locationInfo?.city && locationInfo.city !== 'Unknown') {
       return {
-        city: `${locationInfo.city}, ${locationInfo.region || locationInfo.country || 'Unknown'}`,
-        temp: weatherInfo.temperature || 0,
-        condition: weatherInfo.condition || 'Unknown'
+        city: locationInfo.region && locationInfo.country 
+          ? `${locationInfo.city}, ${locationInfo.region}` 
+          : locationInfo.city,
+        temp: weatherInfo?.temperature || 0,
+        condition: weatherInfo?.condition || 'Unknown'
       };
     }
 
-    // Fallback to country-based mapping
+    // Priority 2: Fallback to country-based mapping only if no location data
     const locationMap: { [key: string]: { city: string; temp: number; condition: string } } = {
       'US': { city: 'New York, USA', temp: 22, condition: 'Partly Cloudy' },
       'GB': { city: 'London, UK', temp: 15, condition: 'Rainy' },
@@ -51,10 +54,13 @@ export default function Header({ startTime }: HeaderProps) {
       'ZA': { city: 'Cape Town, South Africa', temp: 18, condition: 'Windy' }
     };
     
-    return locationMap[country || 'US'] || locationMap['US'];
+    return locationMap[country || 'IN'] || locationMap['IN'];
   };
   
-  const currentLocation = getLocationAndWeather();
+  // Update current location when locationInfo or weatherInfo changes
+  useEffect(() => {
+    setCurrentLocation(getLocationAndWeather());
+  }, [locationInfo, weatherInfo, country]);
 
   useEffect(() => {
     const timer = setInterval(() => {

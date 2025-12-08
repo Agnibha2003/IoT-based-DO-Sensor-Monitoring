@@ -161,6 +161,25 @@ export async function postDAC(corrected_do: number | null) {
   return resp;
 }
 
+export interface ExportLog {
+  id: number;
+  filename: string;
+  file_size: number;
+  format: string;
+  start_date: number;
+  end_date: number;
+  metrics: string;
+  include_analytics: boolean;
+  include_charts: boolean;
+  include_raw: boolean;
+  compression: boolean;
+  created_at: number;
+}
+
+export async function getExportLogs(): Promise<ExportLog[]> {
+  return request<ExportLog[]>('/api/export/logs');
+}
+
 export default {
   getAccessToken,
   setAccessToken,
@@ -177,5 +196,6 @@ export default {
   getStats,
   getHistory,
   postCalibrate,
-  postDAC
+  postDAC,
+  getExportLogs
 };

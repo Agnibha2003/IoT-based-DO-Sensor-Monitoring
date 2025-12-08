@@ -185,6 +185,9 @@ router.delete('/delete-account', requireAuth, asyncHandler(async (req, res) => {
       [userId]
     );
     
+    // Delete all export logs for the user
+    await client.query('DELETE FROM export_logs WHERE user_id = $1', [userId]);
+    
     // Delete all sensors belonging to user
     await client.query('DELETE FROM sensors WHERE user_id = $1', [userId]);
     

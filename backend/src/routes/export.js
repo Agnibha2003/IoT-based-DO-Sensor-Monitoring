@@ -234,9 +234,23 @@ router.get('/readings', requireAuth, asyncHandler(async (req, res) => {
     to: new Date(validTo * 1000).toISOString(),
   };
 
+  let finalBuffer;
+  let finalMimeType;
+  let finalExtension = format;
+
   if (format === 'json') {
     const payload = JSON.stringify({ meta, metrics, data: includeRaw ? dataset : [], analytics });
-    const { payload: finalPayload, downloadName, contentType } = await compressIfNeeded(Buffer.from(payload), baseName, compression, 'application/json');
+    finalBuffer = Buffer.from(payload);
+    finalMimeType = 'application/json';
+    const { payload: finalPayload, downloadName, contentType } = await compressIfNeeded(finalBuffer, baseName, compression, finalMimeType);
+    
+    // Log export to database
+    await db.run(
+      `INSERT INTO export_logs (user_id, filename, file_size, format, start_date, end_date, metrics, include_analytics, include_charts, include_raw, compression, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [req.user.id, downloadName, finalPayload.length, format, validFrom, validTo, JSON.stringify(metrics), includeAnalytics, false, includeRaw, compression, Math.floor(Date.now() / 1000)]
+    );
+    
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
     return res.send(finalPayload);
@@ -244,7 +258,17 @@ router.get('/readings', requireAuth, asyncHandler(async (req, res) => {
 
   if (format === 'xlsx' || format === 'excel') {
     const buffer = await buildXlsxBuffer({ dataset, analytics, metrics, includeRaw });
-    const { payload: finalPayload, downloadName, contentType } = await compressIfNeeded(buffer, baseName, compression, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    finalBuffer = buffer;
+    finalMimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const { payload: finalPayload, downloadName, contentType } = await compressIfNeeded(buffer, baseName, compression, finalMimeType);
+    
+    // Log export to database
+    await db.run(
+      `INSERT INTO export_logs (user_id, filename, file_size, format, start_date, end_date, metrics, include_analytics, include_charts, include_raw, compression, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [req.user.id, downloadName.replace('.excel', '.xlsx'), finalPayload.length, 'xlsx', validFrom, validTo, JSON.stringify(metrics), includeAnalytics, false, includeRaw, compression, Math.floor(Date.now() / 1000)]
+    );
+    
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${downloadName.replace('.excel', '.xlsx')}"`);
     return res.send(finalPayload);
@@ -252,7 +276,17 @@ router.get('/readings', requireAuth, asyncHandler(async (req, res) => {
 
   if (format === 'pdf') {
     const buffer = await buildPdfBuffer({ dataset, analytics, metrics, includeRaw, meta });
-    const { payload: finalPayload, downloadName, contentType } = await compressIfNeeded(buffer, baseName, compression, 'application/pdf');
+    finalBuffer = buffer;
+    finalMimeType = 'application/pdf';
+    const { payload: finalPayload, downloadName, contentType } = await compressIfNeeded(buffer, baseName, compression, finalMimeType);
+    
+    // Log export to database
+    await db.run(
+      `INSERT INTO export_logs (user_id, filename, file_size, format, start_date, end_date, metrics, include_analytics, include_charts, include_raw, compression, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [req.user.id, downloadName, finalPayload.length, format, validFrom, validTo, JSON.stringify(metrics), includeAnalytics, false, includeRaw, compression, Math.floor(Date.now() / 1000)]
+    );
+    
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
     return res.send(finalPayload);
@@ -275,7 +309,17 @@ router.get('/readings', requireAuth, asyncHandler(async (req, res) => {
   }
 
   const csv = stringify(csvRows, { header: true });
-  const { payload: finalPayload, downloadName, contentType } = await compressIfNeeded(Buffer.from(csv), baseName.replace('.csv', '.csv'), compression, 'text/csv');
+  finalBuffer = Buffer.from(csv);
+  finalMimeType = 'text/csv';
+  const { payload: finalPayload, downloadName, contentType } = await compressIfNeeded(finalBuffer, baseName.replace('.csv', '.csv'), compression, finalMimeType);
+  
+  // Log export to database
+  await db.run(
+    `INSERT INTO export_logs (user_id, filename, file_size, format, start_date, end_date, metrics, include_analytics, include_charts, include_raw, compression, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+    [req.user.id, downloadName, finalPayload.length, 'csv', validFrom, validTo, JSON.stringify(metrics), includeAnalytics, false, includeRaw, compression, Math.floor(Date.now() / 1000)]
+  );
+  
   res.setHeader('Content-Type', contentType);
   res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
   return res.send(finalPayload);
@@ -343,6 +387,20 @@ router.get('/stats', requireAuth, asyncHandler(async (req, res) => {
     data_points: dataPoints,
     last_updated: new Date().toISOString(),
   });
+}));
+
+router.get('/logs', requireAuth, asyncHandler(async (req, res) => {
+  const logs = await db.all(
+    `SELECT id, filename, file_size, format, start_date, end_date, metrics, 
+            include_analytics, include_charts, include_raw, compression, created_at
+     FROM export_logs 
+     WHERE user_id = $1 
+     ORDER BY created_at DESC 
+     LIMIT 50`,
+    [req.user.id]
+  );
+  
+  return res.json(logs);
 }));
 
 export default router;

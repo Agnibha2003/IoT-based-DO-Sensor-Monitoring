@@ -99,6 +99,23 @@ const bootstrap = async () => {
       FOREIGN KEY (sensor_id) REFERENCES sensors(id) ON DELETE CASCADE
     )`);
 
+    await client.query(`CREATE TABLE IF NOT EXISTS export_logs (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      file_size BIGINT NOT NULL,
+      format TEXT NOT NULL,
+      start_date BIGINT NOT NULL,
+      end_date BIGINT NOT NULL,
+      metrics TEXT NOT NULL,
+      include_analytics BOOLEAN DEFAULT FALSE,
+      include_charts BOOLEAN DEFAULT FALSE,
+      include_raw BOOLEAN DEFAULT TRUE,
+      compression BOOLEAN DEFAULT FALSE,
+      created_at BIGINT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`);
+
     await client.query(`CREATE INDEX IF NOT EXISTS idx_readings_sensor_time ON readings(sensor_id, captured_at)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sensors_user ON sensors(user_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(LOWER(email))`);

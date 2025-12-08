@@ -15,7 +15,7 @@ import { toast } from 'sonner@2.0.3';
 import { format, subDays } from 'date-fns';
 import { useTheme } from '../utils/themeContext';
 import { useTranslation } from '../utils/translations';
-import backend, { exportReadings, ExportFormat } from '../utils/backend';
+import backend, { exportReadings, ExportFormat, ExportLog, getExportLogs } from '../utils/backend';
 import { fetchDatabaseStats, calculateStoragePercentage, getStorageStatusMessage, formatBytes } from '../../utils/databaseService';
 import type { DatabaseStats } from '../../utils/databaseService';
 
@@ -83,32 +83,34 @@ export default function DataDownloadPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Load export logs from backend
   useEffect(() => {
-    const saved = localStorage.getItem('do_sensor_download_history');
-    if (saved) {
+    const loadExportLogs = async () => {
       try {
-        const parsed = (JSON.parse(saved) as DownloadRecord[]).map((item) => ({
-          ...item,
-          format: ((item as any).format || 'csv') as ExportFormat,
+        const logs = await getExportLogs();
+        const formattedLogs: DownloadRecord[] = logs.map((log) => ({
+          id: log.id.toString(),
+          filename: log.filename,
+          date: new Date(log.created_at * 1000).toISOString(),
+          size: formatBytes(log.file_size),
+          format: log.format as ExportFormat,
           params: {
-            ...item.params,
-            includeCharts: item.params?.includeCharts ?? false,
-            includeAnalytics: item.params?.includeAnalytics ?? false,
-            includeRaw: item.params?.includeRaw ?? true,
-            compression: item.params?.compression ?? false,
-            metrics: item.params?.metrics ?? [],
+            start: new Date(log.start_date * 1000).toISOString(),
+            end: new Date(log.end_date * 1000).toISOString(),
+            metrics: JSON.parse(log.metrics),
+            includeAnalytics: log.include_analytics,
+            includeCharts: log.include_charts,
+            includeRaw: log.include_raw,
+            compression: log.compression,
           },
         }));
-        setDownloadHistory(parsed);
+        setDownloadHistory(formattedLogs);
       } catch (err) {
-        console.error('Failed to parse download history', err);
+        console.error('Failed to load export logs:', err);
       }
-    }
+    };
+    loadExportLogs();
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('do_sensor_download_history', JSON.stringify(downloadHistory));
-  }, [downloadHistory]);
 
   const parameters = [
     { id: 'oldDO', label: t.oldDOConcentration, unit: t.mgL, icon: '📊', color: 'text-chart-2' },
@@ -199,24 +201,26 @@ export default function DataDownloadPage() {
       triggerDownload(blob, filename);
       setDownloadProgress(100);
 
-      const newDownload: DownloadRecord = {
-        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        filename,
-        date: new Date().toISOString(),
-        size: formatBytes(blob.size),
-        format: fileFormat as ExportFormat,
+      // Refresh export logs from backend
+      const logs = await getExportLogs();
+      const formattedLogs: DownloadRecord[] = logs.map((log) => ({
+        id: log.id.toString(),
+        filename: log.filename,
+        date: new Date(log.created_at * 1000).toISOString(),
+        size: formatBytes(log.file_size),
+        format: log.format as ExportFormat,
         params: {
-          start: startIso,
-          end: endIso,
-          metrics,
-          includeAnalytics: includeAnalytics || includeCharts,
-          includeCharts,
-          includeRaw: includeRawData,
-          compression,
+          start: new Date(log.start_date * 1000).toISOString(),
+          end: new Date(log.end_date * 1000).toISOString(),
+          metrics: JSON.parse(log.metrics),
+          includeAnalytics: log.include_analytics,
+          includeCharts: log.include_charts,
+          includeRaw: log.include_raw,
+          compression: log.compression,
         },
-      };
+      }));
+      setDownloadHistory(formattedLogs);
 
-      setDownloadHistory(prev => [newDownload, ...prev].slice(0, 15));
       toast.success(`${t.downloadData} completed successfully!`);
     } catch (err: any) {
       console.error(err);
@@ -327,7 +331,7 @@ export default function DataDownloadPage() {
             transition={{ delay: 0.05, duration: 0.6 }}
           >
             <Card 
-              className="border-border/50 bg-gradient-to-br from-primary/5 to-primary/10 backdrop-blur-sm hover:shadow-xl transition-all duration-500"
+              className="border-border/50 bg-linear-to-br from-primary/5 to-primary/10 backdrop-blur-sm hover:shadow-xl transition-all duration-500"
               style={{ 
                 borderColor: 'var(--color-status-box-border)'
               }}

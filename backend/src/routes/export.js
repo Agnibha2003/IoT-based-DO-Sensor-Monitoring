@@ -9,6 +9,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { readingsInRange } from '../services/readingService.js';
 import { getSensorByIdAndUser } from '../services/sensorService.js';
 import config from '../config.js';
+import { db } from '../db-postgres.js';
 
 const router = Router();
 const gzipAsync = promisify(gzip);
@@ -243,31 +244,65 @@ router.get('/readings', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 router.get('/stats', requireAuth, asyncHandler(async (req, res) => {
-  const sensorId = req.query.sensor_id || config.deviceDefaultId;
-  const sensor = await getSensorByIdAndUser(sensorId, req.user.id);
-  if (!sensor) {
-    return res.status(403).json({ error: 'Access denied' });
+  // Aggregate stats across all sensors owned by the user so the dashboard reflects their data
+  const sensors = await db.all('SELECT id FROM sensors WHERE user_id = $1', [req.user.id]);
+  if (!sensors?.length) {
+    return res.json({
+      total_records: 0,
+      total_size_bytes: 0,
+      oldest_record: null,
+      newest_record: null,
+      average_records_per_day: 0,
+      data_points: [],
+      retention_days: 30,
+      last_updated: new Date().toISOString(),
+    });
   }
+
+  const sensorIds = sensors.map((s) => s.id);
+  const placeholders = sensorIds.map((_, i) => `$${i + 1}`).join(',');
+  const baseParams = [...sensorIds];
 
   const nowSeconds = Math.floor(Date.now() / 1000);
   const fromTime = parseDateToEpoch(req.query.start, nowSeconds - (30 * 24 * 60 * 60));
   const toTime = parseDateToEpoch(req.query.end, nowSeconds);
-  const rows = await readingsInRange(sensorId, Math.min(fromTime, toTime), Math.max(fromTime, toTime));
+  const validFrom = Math.min(fromTime, toTime);
+  const validTo = Math.max(fromTime, toTime);
+  const paramsWithRange = [...baseParams, validFrom, validTo];
+  const rangeClause = ' AND captured_at BETWEEN $' + (baseParams.length + 1) + ' AND $' + (baseParams.length + 2);
+
+  const stats = await db.get(
+    `SELECT COUNT(*)::int as total_records, MIN(captured_at) as oldest_record, MAX(captured_at) as newest_record
+     FROM readings WHERE sensor_id IN (${placeholders})${rangeClause}`,
+    paramsWithRange
+  ) || { total_records: 0, oldest_record: null, newest_record: null };
 
   const metrics = filterMetrics();
-  const analytics = buildAnalytics(buildDataset(rows, metrics), metrics);
+  const dataPoints = await Promise.all(metrics.map(async (metric) => {
+    const row = await db.get(
+      `SELECT COUNT(${metric})::int as count FROM readings WHERE sensor_id IN (${placeholders})${rangeClause}`,
+      paramsWithRange
+    );
+    return { parameter: metric, count: row?.count || 0 };
+  }));
+
+  const totalRecords = stats.total_records || 0;
+  const oldestIso = stats.oldest_record ? new Date(stats.oldest_record * 1000).toISOString() : null;
+  const newestIso = stats.newest_record ? new Date(stats.newest_record * 1000).toISOString() : null;
+  const spanDays = oldestIso && newestIso ? Math.max(1, (stats.newest_record - stats.oldest_record) / 86400) : 1;
+  const averagePerDay = totalRecords ? Number((totalRecords / spanDays).toFixed(2)) : 0;
+
+  // Roughly estimate row size for UI storage indicator (1KB per reading)
+  const estimatedBytes = totalRecords * 1024;
 
   return res.json({
-    sensor_id: sensorId,
-    total_records: rows.length,
-    total_size_bytes: rows.length * metrics.length * 16, // approximate size for UI
-    oldest_record: rows.length ? new Date(Math.min(...rows.map((r) => Number(r.captured_at))) * 1000).toISOString() : null,
-    newest_record: rows.length ? new Date(Math.max(...rows.map((r) => Number(r.captured_at))) * 1000).toISOString() : null,
-    average_records_per_day: rows.length && rows[0]?.captured_at
-      ? Math.round((rows.length / Math.max(1, (toTime - fromTime) / 86400)))
-      : 0,
+    total_records: totalRecords,
+    total_size_bytes: estimatedBytes,
+    oldest_record: oldestIso,
+    newest_record: newestIso,
+    average_records_per_day: averagePerDay,
     retention_days: 30,
-    data_points: analytics.metrics.map((item) => ({ parameter: item.metric, count: item.count })),
+    data_points: dataPoints,
     last_updated: new Date().toISOString(),
   });
 }));

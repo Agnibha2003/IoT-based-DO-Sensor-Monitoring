@@ -60,6 +60,38 @@ export default function HomePage() {
     return () => { isMounted = false; clearInterval(interval); };
   }, [getRefreshInterval]);
 
+  // Load recent history for charts so they render real data instead of staying empty
+  useEffect(() => {
+    let isMounted = true;
+
+    const mapHistoryToChart = (rows: any[]) =>
+      rows.map((row) => ({
+        time: new Date(row.captured_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        oldDO: row.do_concentration ?? null,
+        newDO: row.corrected_do ?? null,
+        temperature: row.temperature ?? null,
+        pressure: row.pressure ?? null,
+        doSaturation: row.do_saturation ?? null,
+      }));
+
+    const loadHistory = async () => {
+      try {
+        const history = await backend.getHistory(500);
+        if (!isMounted) return;
+        setSensorData(mapHistoryToChart(history || []));
+      } catch (err) {
+        if (!isMounted) return;
+        setSensorData([]);
+      }
+    };
+
+    loadHistory();
+    const refreshMs = Math.max(getRefreshInterval() * 3, 60000);
+    const interval = setInterval(loadHistory, refreshMs);
+
+    return () => { isMounted = false; clearInterval(interval); };
+  }, [getRefreshInterval]);
+
   // Auto-detect user's location and timezone on component mount
   // BUT do not overwrite a user-confirmed location saved in localStorage
   useEffect(() => {

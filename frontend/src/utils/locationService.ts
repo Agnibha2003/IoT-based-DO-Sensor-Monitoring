@@ -86,8 +86,37 @@ export const getLocationFromCoordinates = async (
   latitude: number,
   longitude: number
 ): Promise<Partial<LocationInfo>> => {
+  // Helper to parse and normalize location parts
+  const normalize = (
+    country: string | undefined,
+    region: string | undefined,
+    city: string | undefined
+  ): Partial<LocationInfo> => ({
+    country: country || 'Unknown',
+    region: region || 'Unknown',
+    city: city || 'Unknown',
+    coordinates: { lat: latitude, lon: longitude },
+  });
+
+  // First try BigDataCloud (often more precise for city/locality)
   try {
-    // Using nominatim (OpenStreetMap) - free, no key required
+    const resp = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+    );
+    if (resp.ok) {
+      const data: any = await resp.json();
+      if (data && (data.city || data.locality || data.localityInfo?.administrative?.length)) {
+        const admin = data.localityInfo?.administrative || [];
+        const state = admin.find((a: any) => a.adminLevel === 4)?.name || admin.find((a: any) => a.adminLevel === 3)?.name;
+        return normalize(data.countryName, state, data.city || data.locality || data.principalSubdivision);
+      }
+    }
+  } catch (err) {
+    console.warn('BigDataCloud reverse geocode failed, falling back to Nominatim');
+  }
+
+  // Fallback to Nominatim (OpenStreetMap)
+  try {
     const response = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
       {
@@ -105,26 +134,14 @@ export const getLocationFromCoordinates = async (
     const data: any = await response.json();
     const address = data.address || {};
 
-    return {
-      country: address.country || 'Unknown',
-      region: address.state || address.region || 'Unknown',
-      city: address.city || address.town || address.village || 'Unknown',
-      coordinates: {
-        lat: latitude,
-        lon: longitude,
-      },
-    };
+    return normalize(
+      address.country,
+      address.state || address.region,
+      address.city || address.town || address.village || address.hamlet
+    );
   } catch (error) {
     console.error('Reverse geocoding error:', error);
-    return {
-      country: 'Unknown',
-      region: 'Unknown',
-      city: 'Unknown',
-      coordinates: {
-        lat: latitude,
-        lon: longitude,
-      },
-    };
+    return normalize('Unknown', 'Unknown', 'Unknown');
   }
 };
 

@@ -103,8 +103,8 @@ export default function AnalyticsPage() {
     let mounted = true;
     setLoading(true);
     try {
-      // Get backend history
-      const hist = await backend.getHistory(500);
+      // Get backend history - fetch up to 5000 data points to ensure all data for time range is retrieved
+      const hist = await backend.getHistory(5000);
       if (!mounted) return;
       
       if (!hist || hist.length === 0) {
@@ -495,11 +495,17 @@ export default function AnalyticsPage() {
               </Badge>
             </CardTitle>
             <CardDescription className="text-muted-foreground">
-              Real-time analysis with {data?.length || 0} data points
-              {timeframe === 'custom' && customDateRange.from && customDateRange.to && (
-                <span className="ml-2 text-primary">
-                  • Custom Range: {Math.ceil(Math.abs(customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24))} days
-                </span>
+              {data && data.length > 0 ? (
+                <>
+                  Real-time analysis with <strong className="text-primary">{data.length} data points</strong> from database
+                  {timeframe === 'custom' && customDateRange.from && customDateRange.to && (
+                    <span className="ml-2 text-primary">
+                      • Custom Range: {Math.ceil(Math.abs(customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24))} days
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span>Waiting for data from selected timeframe...</span>
               )}
             </CardDescription>
           </CardHeader>
@@ -525,7 +531,12 @@ export default function AnalyticsPage() {
                 <div className="h-96 flex items-center justify-center text-muted-foreground">
                   <div className="flex flex-col items-center space-y-2">
                     <span>No data available for selected time range</span>
-                    <span className="text-xs">Try adjusting the timeframe or date range</span>
+                    <span className="text-xs">
+                      {timeframe === 'custom' 
+                        ? `No readings found between ${customDateRange.from?.toLocaleDateString()} and ${customDateRange.to?.toLocaleDateString()}`
+                        : `No readings found in the selected timeframe`}
+                    </span>
+                    <span className="text-xs text-muted-foreground/75">Try selecting a different timeframe or check if sensor is recording data</span>
                   </div>
                 </div>
               )}

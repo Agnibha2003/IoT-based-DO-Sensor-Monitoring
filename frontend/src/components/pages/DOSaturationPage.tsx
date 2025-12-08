@@ -293,8 +293,8 @@ export default function DOSaturationPage() {
           <CardContent>
             <div className="h-96 relative overflow-hidden">
               <div className="absolute inset-0 bg-linear-to-tr from-amber-500/5 via-transparent to-orange-500/5 rounded-lg"></div>
-              <ResponsiveContainer width="99%" height="100%">
-                <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data} margin={{ top: 30, right: 60, left: 60, bottom: 80 }}>
                   <defs>
                     <linearGradient id="colorSaturation" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.95}/>
@@ -338,9 +338,10 @@ export default function DOSaturationPage() {
                     tick={{ fontSize: 11, fill: '#a1b5a1', fontWeight: 500 }}
                     stroke="url(#satStroke)"
                     strokeWidth={2}
-                    domain={['dataMin - 0.5', 'dataMax + 0.5']}
+                    domain={['dataMin - 1.0', 'dataMax + 1.0']}
                     axisLine={false}
                     tickLine={false}
+                    width={60}
                   />
                   <Tooltip 
                     contentStyle={{

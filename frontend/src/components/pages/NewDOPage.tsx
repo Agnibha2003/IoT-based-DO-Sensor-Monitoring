@@ -295,7 +295,7 @@ export default function NewDOPage() {
               <div className="absolute inset-0 bg-linear-to-tr from-emerald-500/5 via-transparent to-green-500/5 rounded-lg pointer-events-none"></div>
               <div className="relative h-full w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data} margin={{ top: 10, right: 0, left: 0, bottom: 5 }}>
+                  <AreaChart data={data} margin={{ top: 30, right: 60, left: 60, bottom: 80 }}>
                   <defs>
                     <linearGradient id="colorNewDO" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#4ade80" stopOpacity={0.95}/>
@@ -339,9 +339,10 @@ export default function NewDOPage() {
                     tick={{ fontSize: 11, fill: '#a1b5a1', fontWeight: 500 }}
                     stroke="url(#strokeGradientNew)"
                     strokeWidth={2}
-                    domain={[0, 'auto']}
+                    domain={[-1, 'auto']}
                     axisLine={false}
                     tickLine={false}
+                    width={60}
                   />
                   <Tooltip 
                     contentStyle={{

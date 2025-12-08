@@ -101,22 +101,28 @@ const TrendAnalysisChart: React.FC<TrendAnalysisChartProps> = ({
 
   const { values, max, min, range, movingAverage, upperBand, lowerBand } = processedData;
   
-  // Chart dimensions - made bigger
-  const chartWidth = 1000;
-  const chartHeight = 400;
-  const padding = { top: 30, right: 80, bottom: 80, left: 100 };
+  // Chart dimensions with professional padding
+  const chartWidth = 1200;
+  const chartHeight = 500;
+  const padding = { top: 40, right: 100, bottom: 100, left: 120 };
   const plotWidth = chartWidth - padding.left - padding.right;
   const plotHeight = chartHeight - padding.top - padding.bottom;
   
-  // Scale functions
-  const xScale = (index: number) => (index / (values.length - 1)) * plotWidth + padding.left;
-  const yScale = (value: number) => chartHeight - padding.bottom - ((value - min) / range) * plotHeight;
+  // Improved range padding factor for better axis spacing
+  const rangePadding = range === 0 ? 0.5 : 0.2;
+  const paddedMin = min - range * rangePadding;
+  const paddedMax = max + range * rangePadding;
+  const paddedRange = paddedMax - paddedMin;
+  
+  // Scale functions with padding offsets
+  const xScale = (index: number) => padding.left + (index / Math.max(values.length - 1, 1)) * plotWidth;
+  const yScale = (value: number) => chartHeight - padding.bottom - ((value - paddedMin) / paddedRange) * plotHeight;
   
   // Generate grid lines
   const yGridLines = [];
   const gridLineCount = 5;
   for (let i = 0; i <= gridLineCount; i++) {
-    const value = min + (range * i) / gridLineCount;
+    const value = paddedMin + (paddedRange * i) / gridLineCount;
     const y = yScale(value);
     yGridLines.push({ y, value });
   }
@@ -169,7 +175,7 @@ const TrendAnalysisChart: React.FC<TrendAnalysisChartProps> = ({
   // Create area path for gradient fill
   const areaPath = (() => {
     const linePath = generateSmoothPath(values);
-    const bottomY = yScale(min);
+    const bottomY = yScale(paddedMin);
     const firstX = xScale(0);
     const lastX = xScale(values.length - 1);
     
@@ -242,10 +248,11 @@ const TrendAnalysisChart: React.FC<TrendAnalysisChartProps> = ({
       >
         <div className="w-full overflow-x-auto">
           <svg 
-            width={chartWidth} 
-            height={chartHeight}
-            className="w-full h-auto max-w-full"
-            style={{ minWidth: '600px' }}
+            width="100%"
+            height="auto"
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            className="w-full max-w-full"
+            style={{ minHeight: `${chartHeight}px` }}
           >
             {/* Background */}
             <rect

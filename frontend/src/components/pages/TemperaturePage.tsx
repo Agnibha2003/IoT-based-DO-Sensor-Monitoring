@@ -295,8 +295,8 @@ export default function TemperaturePage() {
           <CardContent>
             <div className="h-96 relative overflow-hidden">
               <div className="absolute inset-0 bg-linear-to-tr from-rose-500/5 via-transparent to-pink-500/5 rounded-lg"></div>
-              <ResponsiveContainer width="99%" height="100%">
-                <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data} margin={{ top: 30, right: 60, left: 60, bottom: 80 }}>
                   <defs>
                     <linearGradient id="colorTemperature" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#fb7185" stopOpacity={0.9}/>
@@ -338,9 +338,10 @@ export default function TemperaturePage() {
                     tick={{ fontSize: 11, fill: '#a1b5a1', fontWeight: 500 }}
                     stroke="rgba(251, 113, 133, 0.5)"
                     strokeWidth={2}
-                    domain={['dataMin - 0.5', 'dataMax + 0.5']}
+                    domain={['dataMin - 1.0', 'dataMax + 1.0']}
                     axisLine={false}
                     tickLine={false}
+                    width={60}
                   />
                   <Tooltip 
                     contentStyle={{

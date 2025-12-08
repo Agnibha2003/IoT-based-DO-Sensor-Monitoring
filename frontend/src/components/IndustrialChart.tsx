@@ -44,23 +44,25 @@ export default function IndustrialChart({
     return () => clearTimeout(timer);
   }, []);
 
-  // Calculate SVG dimensions and scales
-  const padding = { top: 20, right: 40, bottom: 60, left: 60 };
-  const chartWidth = 800 - padding.left - padding.right;
+  // Calculate SVG dimensions and scales with professional spacing
+  const padding = { top: 40, right: 60, bottom: 100, left: 80 };
+  const svgWidth = 1000;
+  const chartWidth = svgWidth - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
-  // Get data bounds
+  // Get data bounds with proper margins
   const values = data.map(d => parseFloat(d.value));
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
-  const valueRange = maxValue - minValue;
-  const padding_factor = 0.1;
+  const valueRange = maxValue - minValue || 1;
+  // Increased padding factor for professional spacing
+  const padding_factor = valueRange === 0 ? 0.5 : 0.2;
   const yMin = minValue - valueRange * padding_factor;
   const yMax = maxValue + valueRange * padding_factor;
 
-  // Create scales
-  const xScale = (index: number) => (index / (data.length - 1)) * chartWidth;
-  const yScale = (value: number) => chartHeight - ((value - yMin) / (yMax - yMin)) * chartHeight;
+  // Create scales with padding offset
+  const xScale = (index: number) => padding.left + (index / Math.max(data.length - 1, 1)) * chartWidth;
+  const yScale = (value: number) => padding.top + chartHeight - ((value - yMin) / (yMax - yMin)) * chartHeight;
 
   // Create path for main line
   const linePath = data.map((d, i) => {
@@ -70,7 +72,7 @@ export default function IndustrialChart({
   }).join(' ');
 
   // Create path for area fill
-  const areaPath = `${linePath} L ${xScale(data.length - 1)} ${chartHeight} L ${xScale(0)} ${chartHeight} Z`;
+  const areaPath = `${linePath} L ${xScale(data.length - 1)} ${padding.top + chartHeight} L ${xScale(0)} ${padding.top + chartHeight} Z`;
 
   // Create animated path
   const animatedLinePath = data.slice(0, Math.floor(data.length * animationProgress)).map((d, i) => {
@@ -79,19 +81,19 @@ export default function IndustrialChart({
     return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
   }).join(' ');
 
-  // Create grid lines
+  // Create grid lines with proper positioning
   const gridLines = [];
   if (showGrid) {
     // Horizontal grid lines
     for (let i = 0; i <= 5; i++) {
-      const y = (chartHeight / 5) * i;
+      const y = padding.top + (chartHeight / 5) * i;
       const value = yMax - (i / 5) * (yMax - yMin);
       gridLines.push(
         <g key={`h-grid-${i}`}>
           <motion.line
-            x1={0}
+            x1={padding.left}
             y1={y}
-            x2={chartWidth}
+            x2={padding.left + chartWidth}
             y2={y}
             stroke={isDark ? 'rgba(34, 197, 94, 0.1)' : 'rgba(16, 163, 74, 0.1)'}
             strokeDasharray="2,2"
@@ -100,7 +102,7 @@ export default function IndustrialChart({
             transition={{ delay: i * 0.1 }}
           />
           <motion.text
-            x={-10}
+            x={padding.left - 10}
             y={y + 3}
             textAnchor="end"
             className="text-xs fill-muted-foreground"
@@ -116,16 +118,16 @@ export default function IndustrialChart({
 
     // Vertical grid lines
     for (let i = 0; i <= 6; i++) {
-      const x = (chartWidth / 6) * i;
+      const x = padding.left + (chartWidth / 6) * i;
       const dataIndex = Math.floor((data.length - 1) * (i / 6));
       const date = data[dataIndex]?.date || '';
       gridLines.push(
         <g key={`v-grid-${i}`}>
           <motion.line
             x1={x}
-            y1={0}
+            y1={padding.top}
             x2={x}
-            y2={chartHeight}
+            y2={padding.top + chartHeight}
             stroke={isDark ? 'rgba(34, 197, 94, 0.1)' : 'rgba(16, 163, 74, 0.1)'}
             strokeDasharray="2,2"
             initial={{ opacity: 0 }}
@@ -134,7 +136,7 @@ export default function IndustrialChart({
           />
           <motion.text
             x={x}
-            y={chartHeight + 20}
+            y={padding.top + chartHeight + 25}
             textAnchor="middle"
             className="text-xs fill-muted-foreground"
             initial={{ opacity: 0 }}
@@ -159,7 +161,7 @@ export default function IndustrialChart({
     thresholdZones.push(
       <motion.rect
         key="optimal-zone"
-        x={0}
+        x={padding.left}
         y={optimalTop}
         width={chartWidth}
         height={optimalBottom - optimalTop}
@@ -170,7 +172,7 @@ export default function IndustrialChart({
       />,
       <motion.rect
         key="warning-zone"
-        x={0}
+        x={padding.left}
         y={warningTop}
         width={chartWidth}
         height={warningBottom - warningTop}
@@ -187,7 +189,7 @@ export default function IndustrialChart({
       <svg
         width="100%"
         height={height}
-        viewBox={`0 0 800 ${height}`}
+        viewBox={`0 0 ${svgWidth} ${height}`}
         className="overflow-visible"
       >
         <defs>
@@ -208,9 +210,11 @@ export default function IndustrialChart({
           </filter>
         </defs>
 
-        <g transform={`translate(${padding.left}, ${padding.top})`}>
+        <g>
           {/* Background */}
           <motion.rect
+            x={padding.left}
+            y={padding.top}
             width={chartWidth}
             height={chartHeight}
             fill={isDark ? 'rgba(15, 23, 16, 0.5)' : 'rgba(248, 250, 252, 0.5)'}
@@ -317,8 +321,8 @@ export default function IndustrialChart({
 
           {/* Axis labels */}
           <motion.text
-            x={chartWidth / 2}
-            y={chartHeight + 50}
+            x={padding.left + chartWidth / 2}
+            y={padding.top + chartHeight + 60}
             textAnchor="middle"
             className="text-sm fill-muted-foreground"
             initial={{ opacity: 0 }}
@@ -329,10 +333,10 @@ export default function IndustrialChart({
           </motion.text>
 
           <motion.text
-            x={-30}
-            y={chartHeight / 2}
+            x={30}
+            y={padding.top + chartHeight / 2}
             textAnchor="middle"
-            transform={`rotate(-90, -30, ${chartHeight / 2})`}
+            transform={`rotate(-90, 30, ${padding.top + chartHeight / 2})`}
             className="text-sm fill-muted-foreground"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -344,7 +348,7 @@ export default function IndustrialChart({
 
         {/* Chart title */}
         <motion.text
-          x={400}
+          x={svgWidth / 2}
           y={30}
           textAnchor="middle"
           className="text-lg fill-foreground font-medium"

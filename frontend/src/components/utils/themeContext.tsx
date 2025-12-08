@@ -104,6 +104,8 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     const savedCountry = localStorage.getItem('country');
     const savedRefreshRate = localStorage.getItem('refreshRate') as RefreshRate;
     const savedChartQuality = localStorage.getItem('chartQuality') as ChartQuality;
+    const savedLocation = localStorage.getItem('do_sensor_location');
+    const savedWeather = localStorage.getItem('do_sensor_weather');
     
     // Always ensure dark theme
     setTheme('dark');
@@ -136,6 +138,25 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     
     if (savedChartQuality) {
       setChartQuality(savedChartQuality);
+    }
+    
+    // Load location and weather info from localStorage to persist across page navigation
+    if (savedLocation) {
+      try {
+        const locationData = JSON.parse(savedLocation);
+        setLocationInfo(locationData);
+      } catch (error) {
+        console.error('Failed to parse saved location:', error);
+      }
+    }
+    
+    if (savedWeather) {
+      try {
+        const weatherData = JSON.parse(savedWeather);
+        setWeatherInfo(weatherData);
+      } catch (error) {
+        console.error('Failed to parse saved weather:', error);
+      }
     }
   }, []);
 

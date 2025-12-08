@@ -72,4 +72,33 @@ router.get('/stats', requireAuth, asyncHandler(async (req, res) => {
   });
 }));
 
+router.get('/storage-info', requireAuth, asyncHandler(async (req, res) => {
+  // Get all sensors for this user
+  const sensors = await db.all('SELECT id FROM sensors WHERE user_id = $1', [req.user.id]);
+  
+  if (!sensors || sensors.length === 0) {
+    return res.json({
+      totalReadings: 0,
+      estimatedSizeGB: 0
+    });
+  }
+  
+  // Count total readings across all user's sensors
+  const sensorIds = sensors.map(s => s.id);
+  const placeholders = sensorIds.map((_, i) => `$${i + 1}`).join(',');
+  const result = await db.get(
+    `SELECT COUNT(*) as count FROM readings WHERE sensor_id IN (${placeholders})`,
+    sensorIds
+  );
+  
+  const totalReadings = result?.count || 0;
+  // Estimate: ~1KB per reading
+  const estimatedSizeGB = (totalReadings * 1024) / (1024 * 1024 * 1024);
+  
+  res.json({
+    totalReadings,
+    estimatedSizeGB
+  });
+}));
+
 export default router;

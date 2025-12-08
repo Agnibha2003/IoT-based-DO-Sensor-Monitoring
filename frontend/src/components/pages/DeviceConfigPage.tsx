@@ -5,14 +5,16 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { Key, Hash, Code, Trash2, Copy, Check, AlertTriangle, Shield, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
+import { Key, Hash, Code, Trash2, Copy, Check, AlertTriangle, Shield, Eye, EyeOff, ChevronDown, ChevronUp, User, Database, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import backend from '../utils/backend';
 
 // Custom API calls
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+
 const fetchDeviceConfig = async () => {
   const token = backend.getAccessToken();
-  const response = await fetch('http://localhost:5000/api/auth/device-config', {
+  const response = await fetch(`${API_BASE_URL}/api/auth/device-config`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -26,9 +28,23 @@ const fetchDeviceConfig = async () => {
   return response.json();
 };
 
+const fetchStorageInfo = async () => {
+  const token = backend.getAccessToken();
+  const response = await fetch(`${API_BASE_URL}/api/readings/storage-info`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  if (!response.ok) {
+    return { totalReadings: 0, estimatedSizeGB: 0 };
+  }
+  return response.json();
+};
+
 const deleteAccount = async () => {
   const token = backend.getAccessToken();
-  const response = await fetch('http://localhost:5000/api/auth/delete-account', {
+  const response = await fetch(`${API_BASE_URL}/api/auth/delete-account`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -47,11 +63,13 @@ interface DeviceConfig {
   deviceId: string;
   apiKey: string;
   userId: string;
+  userEmail: string;
   createdAt: string;
 }
 
 export default function DeviceConfigPage({ onSignOut }: { onSignOut: () => void }) {
   const [deviceConfig, setDeviceConfig] = useState<DeviceConfig | null>(null);
+  const [storageInfo, setStorageInfo] = useState<{ totalReadings: number; estimatedSizeGB: number }>({ totalReadings: 0, estimatedSizeGB: 0 });
   const [loading, setLoading] = useState(true);
   const [copiedApiKey, setCopiedApiKey] = useState(false);
   const [copiedDeviceId, setCopiedDeviceId] = useState(false);
@@ -70,6 +88,10 @@ export default function DeviceConfigPage({ onSignOut }: { onSignOut: () => void 
       const data = await fetchDeviceConfig();
       console.log('Device config loaded:', data);
       setDeviceConfig(data);
+      
+      // Load storage info
+      const storage = await fetchStorageInfo();
+      setStorageInfo(storage);
     } catch (error: any) {
       console.error('Error fetching device config:', error);
       toast.error('Failed to load device configuration: ' + (error.message || 'Unknown error'));
@@ -140,6 +162,8 @@ export default function DeviceConfigPage({ onSignOut }: { onSignOut: () => void 
   const getSampleCode = () => {
     if (!deviceConfig) return '';
     
+    const baseUrl = API_BASE_URL || 'http://localhost:5001';
+    
     return `# DO Sensor Sample Code
 # Replace the values below with your credentials
 
@@ -149,7 +173,7 @@ import time
 # Your unique credentials
 API_KEY = "${deviceConfig.apiKey}"
 DEVICE_ID = "${deviceConfig.deviceId}"
-BASE_URL = "http://localhost:5001/api"
+BASE_URL = "${baseUrl}/api"
 
 # Send sensor reading
 def send_reading(do_concentration, temperature, pressure, do_saturation):
@@ -251,6 +275,34 @@ if __name__ == "__main__":
         <div className="grid grid-cols-2 gap-6">
           {/* Left Column */}
           <div className="space-y-4">
+            {/* User Email Section */}
+            <Card 
+              style={{ 
+                backgroundColor: 'var(--color-status-box)',
+                borderColor: 'var(--color-status-box-border)'
+              }}
+            >
+              <CardHeader className="pb-3 pt-4 px-4">
+                <CardTitle className="flex items-center space-x-2 text-base">
+                  <Mail className="h-4 w-4" />
+                  <span>Account Email</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-4">
+                <p className="text-xs text-muted-foreground">
+                  The email address associated with your account
+                </p>
+                <div className="flex space-x-2">
+                  <Input
+                    id="userEmail"
+                    value={deviceConfig.userEmail || 'N/A'}
+                    readOnly
+                    className="font-mono text-xs bg-muted flex-1 h-8"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+            
             {/* Device ID Section */}
             <Card 
               style={{ 
@@ -331,6 +383,36 @@ if __name__ == "__main__":
                   >
                     {copiedApiKey ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Database Storage Section */}
+            <Card 
+              style={{ 
+                backgroundColor: 'var(--color-status-box)',
+                borderColor: 'var(--color-status-box-border)'
+              }}
+            >
+              <CardHeader className="pb-3 pt-4 px-4">
+                <CardTitle className="flex items-center space-x-2 text-base">
+                  <Database className="h-4 w-4" />
+                  <span>Database Storage</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-4">
+                <p className="text-xs text-muted-foreground">
+                  Current storage usage for your sensor data
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-1">Total Readings</p>
+                    <p className="text-lg font-semibold text-foreground">{storageInfo.totalReadings.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-1">Storage Used</p>
+                    <p className="text-lg font-semibold text-foreground">{storageInfo.estimatedSizeGB.toFixed(2)} GB</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
